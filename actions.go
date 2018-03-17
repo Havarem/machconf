@@ -1,12 +1,17 @@
 package main
 
 import (
-	"github.com/urfave/cli"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
+
+	"github.com/urfave/cli"
+
 	"gopkg.in/yaml.v2"
 )
+
+const filePath = ".machconf"
 
 func check(e error) {
 	if e != nil {
@@ -14,19 +19,26 @@ func check(e error) {
 	}
 }
 
+func writeConfig(machine Machine) (error) {
+	yml, err := yaml.Marshal(machine)
+	if err != nil {
+		return err 
+	}
+
+	err = ioutil.WriteFile(filePath, yml, 0755)
+	return err
+}
+
 // Handles the init command of the machconf tool
 func InitAction(c *cli.Context) error {
-	if _, err := os.Stat(".machconf"); os.IsNotExist(err) {
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		machine := Machine {
 			Ip: nil,
 			Domain: "",
 			Flags: []Flag { },
 		}
 
-		yml, err := yaml.Marshal(machine)
-		check(err)
-
-		err = ioutil.WriteFile(".machconf", yml, 0755)
+		err = writeConfig(machine)
 		check(err)
 
 		os.Stdout.WriteString("Machine configuration created\n")
@@ -37,9 +49,42 @@ func InitAction(c *cli.Context) error {
 	return nil
 }
 
+func openConfig() (Machine, error) {
+	var result Machine
+	var err error
+
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		os.Stderr.WriteString("Machine not initialized")
+	} else {
+		content, err := ioutil.ReadFile(filePath)
+		if err != nil {
+			return result, err
+		}
+
+		err = yaml.Unmarshal(content, &result)
+	}
+
+	return result, err
+}
+
 // Handles the configure command of the machconf tool
 func ConfigureAction(c *cli.Context) error {
-	fmt.Println("Configure not yet implemented")
+	machine, err := openConfig()
+	check(err)
+
+	if c.String("fqdn") != "" {
+		machine.Domain = c.String("fqdn")
+	}
+
+	if c.String("ip") != "" {
+		machine.Ip = net.ParseIP(c.String("ip"))
+	}
+
+	err = writeConfig(machine)
+	check(err)
+
+	os.Stdout.WriteString("Machine updated\n")
+
 	return nil
 }
 
