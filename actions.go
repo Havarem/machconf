@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"gopkg.in/yaml.v2"
 )
 
 func check(e error) {
@@ -16,12 +17,21 @@ func check(e error) {
 // Handles the init command of the machconf tool
 func InitAction(c *cli.Context) error {
 	if _, err := os.Stat(".machconf"); os.IsNotExist(err) {
-		content := []byte("")
-		err := ioutil.WriteFile(".machconf", content, 0755)
+		machine := Machine {
+			Ip: nil,
+			Domain: "",
+			Flags: []Flag { },
+		}
+
+		yml, err := yaml.Marshal(machine)
 		check(err)
-		os.Stdout.WriteString("Machine configuration created")
+
+		err = ioutil.WriteFile(".machconf", yml, 0755)
+		check(err)
+
+		os.Stdout.WriteString("Machine configuration created\n")
 	} else {
-		os.Stderr.WriteString("Can't create machine - Configuration already exists")
+		os.Stderr.WriteString("Can't create machine - Configuration already exists\n")
 	}
 
 	return nil
